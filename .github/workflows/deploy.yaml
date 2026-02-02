@@ -1,0 +1,61 @@
+name: Deploy to Kubernetes
+
+on:
+  push:
+    branches:
+      - dev
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Determine Environment
+        id: env
+        run: |
+          if [ "${{ github.ref }}" == "refs/heads/dev" ]; then
+            echo "ENVIRONMENT=dev" >> $GITHUB_OUTPUT
+            echo "TAG=dev-latest" >> $GITHUB_OUTPUT
+            echo "NAMESPACE=dev" >> $GITHUB_OUTPUT
+          elif [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            echo "ENVIRONMENT=prod" >> $GITHUB_OUTPUT
+            echo "TAG=prod-latest" >> $GITHUB_OUTPUT
+            echo "NAMESPACE=prod" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      
+      - name: Build Docker Image
+        run: |
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/simple-app:${{ steps.env.outputs.TAG }} .
+      
+      - name: Push to Docker Hub
+        run: |
+          docker push ${{ secrets.DOCKER_USERNAME }}/simple-app:${{ steps.env.outputs.TAG }}
+      
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+      
+      - name: Configure kubectl
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBECONFIG }}" | base64 -d > $HOME/.kube/config
+      
+      - name: Deploy to Kubernetes
+        run: |
+          kubectl apply -f k8s/${{ steps.env.outputs.ENVIRONMENT }}/
+          kubectl rollout status deployment/simple-app -n ${{ steps.env.outputs.NAMESPACE }}
+      
+      - name: Verify Deployment
+        run: |
+          kubectl get all -n ${{ steps.env.outputs.NAMESPACE }}
