@@ -8,7 +8,7 @@ on:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     
     steps:
       - name: Checkout code
@@ -41,21 +41,11 @@ jobs:
         run: |
           docker push ${{ secrets.DOCKER_USERNAME }}/simple-app:${{ steps.env.outputs.TAG }}
       
-      - name: Install kubectl
-        uses: azure/setup-kubectl@v3
-        with:
-          version: 'latest'
-      
-      - name: Configure kubectl
-        run: |
-          mkdir -p $HOME/.kube
-          echo "${{ secrets.KUBECONFIG }}" | base64 -d > $HOME/.kube/config
-      
       - name: Deploy to Kubernetes
         run: |
-          kubectl apply -f k8s/${{ steps.env.outputs.ENVIRONMENT }}/
-          kubectl rollout status deployment/simple-app -n ${{ steps.env.outputs.NAMESPACE }}
+          microk8s kubectl apply -f k8s/${{ steps.env.outputs.ENVIRONMENT }}/
+          microk8s kubectl rollout status deployment/simple-app -n ${{ steps.env.outputs.NAMESPACE }}
       
       - name: Verify Deployment
         run: |
-          kubectl get all -n ${{ steps.env.outputs.NAMESPACE }}
+          microk8s kubectl get all -n ${{ steps.env.outputs.NAMESPACE }}
