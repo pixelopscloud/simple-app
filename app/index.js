@@ -70,5 +70,5 @@ app.get('/health', (req, res) => {
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT} in ${ENVIRONMENT} environment`);
 });
-// GitHub Actions Test - Dev Environment
+// Self-hosted runner - WORKING! 🚀
 // Second test
